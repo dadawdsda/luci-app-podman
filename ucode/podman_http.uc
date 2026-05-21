@@ -21,7 +21,7 @@ export function build_request(method, path, body) {
 		req += sprintf('Content-Type: application/json\r\nContent-Length: %d\r\n', length(s));
 		req += '\r\n';
 		req += s;
-		return req;<
+		return req;
 	}
 	return req + '\r\n';
 };
