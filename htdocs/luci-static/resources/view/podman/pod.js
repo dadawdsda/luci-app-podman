@@ -12,9 +12,10 @@
 'require view.podman.pod-tab.stats as PodStatsTab';
 'require view.podman.pod-tab.processes as PodProcessesTab';
 
-return podmanView.base.extend({
+return podmanView.container.extend({
 	pod: null,
 	data: null,
+	listUrl: L.url('admin/podman/pods'),
 
 	async load() {
 		const path = L.location();
@@ -30,6 +31,7 @@ return podmanView.base.extend({
 
 		const inspectData = await pod.inspect();
 		this.data = inspectData;
+
 		return Pod.getSingleton(inspectData);
 	},
 
@@ -40,13 +42,11 @@ return podmanView.base.extend({
 		}
 
 		this.pod = pod;
-
-		const tabs = new podmanUI.Tabs('info');
-		tabs
-			.addTab('info',    _('Info'))
-			.addTab('containers',   _('Containers'))
-			.addTab('stats',   _('Stats'))
-			.addTab('ps',      _('Processes'))
+		this.tabs
+			.addTab('info', _('Info'))
+			.addTab('containers', _('Containers'))
+			.addTab('stats', _('Stats'))
+			.addTab('ps', _('Processes'))
 			.addTab('inspect', _('Inspect'));
 
 		requestAnimationFrame(() => {
@@ -57,75 +57,21 @@ return podmanView.base.extend({
 			this.renderInspectTab();
 		});
 
-		window.addEventListener('pagehide', () => this.stopStreams(), { once: true });
+		return this.super('render', []);
+	},
 
-		return E('div', {}, [ this.createHeader(), tabs.render() ]);
+	createHeader() {
+		return this.super('createHeader', [
+			this.pod.getName(),
+			this.pod.isRunning(),
+			this.pod.isStopped(),
+			this.pod.isPaused(),
+		]);
 	},
 
 	stopStreams() {
 		this.getTabInstance('stats')?.onTabInactive();
 		this.getTabInstance('ps')?.onTabInactive();
-	},
-
-	redirectToList() {
-		this.stopStreams();
-		window.location.href = L.url('admin/podman/pods');
-	},
-
-	getTabInstance(name) {
-		const tabNode = document.querySelector(`.tab-pane[data-tab="${name}"]`);
-		return tabNode ? dom.findClassInstance(tabNode) : null;
-	},
-
-	createHeader() {
-		const state = this.pod.getStatus();
-		const stopActive = state === 'Stopped' || state === 'Exited' || state === 'Created' || state === 'Dead';
-
-		return E('div', { class: 'mb-sm container-toolbar' }, [
-			E('div', { class: 'd-flex align-start' }, [
-				E('h2', { class: 'mb-sm' }, [ this.pod.getName() ]),
-				new podmanUI.ButtonNew('&#128281;', {
-					click: () => this.redirectToList(),
-					type: 'none',
-				}).render(),
-			]),
-			E('div', { class: 'd-flex align-center' }, [
-				new podmanUI.ButtonNew('&#9658;', {
-					click: ui.createHandlerFn(this, 'handleStart'),
-					type: state === 'Running' ? 'active' : '',
-				}).render(),
-				new podmanUI.ButtonNew('&#9724;', {
-					click: ui.createHandlerFn(this, 'handleStop'),
-					type: stopActive ? 'active' : '',
-				}).render(),
-				new podmanUI.ButtonNew('&#8635;', {
-					click: ui.createHandlerFn(this, 'handleRestart'),
-				}).render(),
-				new podmanUI.ButtonNew('&#10074;&#10074;', {
-					click: ui.createHandlerFn(this, 'handlePause'),
-					type: state === 'Paused' ? 'active' : '',
-				}).render(),
-				new podmanUI.ButtonNew(_('Delete'), {
-					click: ui.createHandlerFn(this, 'handleRemove'),
-					type: 'negative',
-				}).render(),
-			]),
-		]);
-	},
-
-	renderTab(tab, content, description) {
-		const tabContainer = document.querySelector(`.tab-pane[data-tab="${tab}"]`);
-		const tabContainerNode = tabContainer?.querySelector('.cbi-section-node');
-
-		if (!tabContainerNode) return;
-
-		if (description) {
-			tabContainer.insertBefore(E('div', {
-				class: 'cbi-section-descr'
-			}, description), tabContainer.firstChild);
-		}
-
-		dom.content(tabContainerNode, content);
 	},
 
 	async renderInfoTab() {
@@ -157,13 +103,13 @@ return podmanView.base.extend({
 			return;
 		}
 
+		this.loading(_('Start pod'));
+
 		if (this.pod.isPaused()) {
-			this.loading(_('Unpause pod'));
 			this.pod.unpause().then(() => window.location.reload());
 			return;
 		}
 
-		this.loading(_('Start pod'));
 		this.pod.start().then(() => window.location.reload());
 	},
 

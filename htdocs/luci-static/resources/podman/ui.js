@@ -35,6 +35,16 @@ const AbstractInputField = ui.Textfield.extend({
 	},
 });
 
+const UINumberfield = AbstractInputField.extend({
+	__name__: 'Podman.UI.Numberfield',
+	inputType: 'number',
+});
+
+const UIDatefield = AbstractInputField.extend({
+	__name__: 'Podman.UI.Datefield',
+	inputType: 'date',
+});
+
 const UIBase = baseclass.extend({
 	__name__: 'Podman.UI',
 
@@ -458,16 +468,6 @@ const UITabs = baseclass.extend({
 
 		return tabContainer;
 	}
-});
-
-const UINumberfield = AbstractInputField.extend({
-	__name__: 'Podman.UI.Numberfield',
-	inputType: 'number',
-});
-
-const UIDatefield = AbstractInputField.extend({
-	__name__: 'Podman.UI.Datefield',
-	inputType: 'date',
 });
 
 const UIModal = baseclass.extend({

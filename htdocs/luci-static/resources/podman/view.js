@@ -7,6 +7,7 @@
 'require ui';
 
 'require podman.ui as podmanUI';
+'require podman.constants as constant';
 
 const ViewDefault = {
 	scrollToTop() {
@@ -224,6 +225,88 @@ const ViewForm = baseclass.extend({
 	},
 });
 
+const ViewTabs = ViewBase.extend({
+	__name__: 'Podman.View.Tabs',
+	tabs: null,
+
+	__init__() {
+		this.tabs = new podmanUI.Tabs('info');
+		this.super('__init__', []);
+	},
+
+	renderTab(tab, content, description) {
+		const tabContainer = document.querySelector(`.tab-pane[data-tab="${tab}"]`);
+		const tabContainerNode = tabContainer?.querySelector('.cbi-section-node');
+
+		if (!tabContainerNode) return;
+
+		if (description) {
+			tabContainer.insertBefore(E('div', {
+				class: 'cbi-section-descr'
+			}, description), tabContainer.firstChild);
+		}
+
+		dom.content(tabContainerNode, content);
+	},
+
+	getTabInstance(name) {
+		const tabNode = document.querySelector(`.tab-pane[data-tab="${name}"]`);
+		return tabNode ? dom.findClassInstance(tabNode) : null;
+	},
+});
+
+const ViewContainer = ViewTabs.extend({
+	__name__: 'Podman.View.Container',
+	listUrl: '#',
+
+	async render() {
+		window.addEventListener('pagehide', () => this.stopStreams(), { once: true });
+
+		return E('div', {}, [ this.createHeader(), this.tabs.render() ]);
+	},
+
+	createHeader(name, isRunning, isStopped, isPaused) {
+		return E('div', { class: 'mb-sm container-toolbar' }, [
+			E('div', { class: 'd-flex align-start' }, [
+				E('h2', { class: 'mb-sm' }, [ name ]),
+				new podmanUI.ButtonNew(constant.ICON.BACK, {
+					click: () => this.redirectToList(),
+					type: 'none',
+				}).render(),
+			]),
+			E('div', { class: 'd-flex align-center' }, [
+				new podmanUI.ButtonNew(constant.ICON.START, {
+					click: ui.createHandlerFn(this, 'handleStart'),
+					type: isRunning ? 'active' : '',
+				}).render(),
+				new podmanUI.ButtonNew(constant.ICON.STOP, {
+					click: ui.createHandlerFn(this, 'handleStop'),
+					type: isStopped ? 'active' : '',
+				}).render(),
+				new podmanUI.ButtonNew(constant.ICON.RESTART, {
+					click: ui.createHandlerFn(this, 'handleRestart'),
+				}).render(),
+				new podmanUI.ButtonNew(constant.ICON.PAUSE, {
+					click: ui.createHandlerFn(this, 'handlePause'),
+					type: isPaused ? 'active' : '',
+				}).render(),
+				new podmanUI.ButtonNew(_('Delete'), {
+					click: ui.createHandlerFn(this, 'handleRemove'),
+					type: 'negative',
+				}).render(),
+			]),
+		]);
+	},
+
+	redirectToList() {
+		this.stopStreams();
+		window.location.href = this.listUrl;
+	},
+
+	stopStreams() {
+	},
+});
+
 const ViewTabContent = baseclass.extend({
 	...ViewDefault,
 	__name__: 'PodmanView.TabContent',
@@ -299,5 +382,6 @@ return baseclass.extend({
 	base: ViewBase,
 	list: ViewList,
 	form: ViewForm,
+	container: ViewContainer,
 	tabContent: ViewTabContent,
 });

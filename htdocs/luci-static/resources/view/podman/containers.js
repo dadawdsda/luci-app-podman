@@ -3,6 +3,7 @@
 'require dom';
 'require ui';
 
+'require podman.constants as constant';
 'require podman.rpc as podmanRPC';
 'require podman.utils as utils';
 'require podman.ui as podmanUI';
@@ -31,10 +32,10 @@ return podmanView.list.extend({
 		this.section.createForm = PodmanFormContainer;
 		this.section.handleRefreshCb = () => this.checkInitScripts();
 		this.section.toolbarExtraButtons = [
-			new podmanUI.Button('&#9658;', ui.createHandlerFn(this, 'handleStart')).render(),
-			new podmanUI.Button('&#9724;', ui.createHandlerFn(this, 'handleStop')).render(),
-			new podmanUI.Button('&#8635;', ui.createHandlerFn(this, 'handleRestart')).render(),
-			new podmanUI.Button('&#10074;&#10074;', ui.createHandlerFn(this, 'handlePause')).render(),
+			new podmanUI.Button(constant.ICON.START, ui.createHandlerFn(this, 'handleStart')).render(),
+			new podmanUI.Button(constant.ICON.STOP, ui.createHandlerFn(this, 'handleStop')).render(),
+			new podmanUI.Button(constant.ICON.RESTART, ui.createHandlerFn(this, 'handleRestart')).render(),
+			new podmanUI.Button(constant.ICON.PAUSE, ui.createHandlerFn(this, 'handlePause')).render(),
 		];
 
 		let o;

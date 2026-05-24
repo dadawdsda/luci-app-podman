@@ -5,6 +5,7 @@
 'require podman.model.Model as Model';
 'require podman.model.Network as Network';
 'require podman.model.Image as Image';
+'require podman.constants as constants';
 'require podman.utils as podmanUtil';
 
 
@@ -438,28 +439,27 @@ const Container = Model.base.extend({
 		let text = '-';
 
 		if (status === 'enabled') {
-			text = '✓';
+			text = constants.ICON.INIT_ENABLED;
 		} else if (status === 'missing') {
-			text = '⚠';
+			text = constants.ICON.INIT_MISSING;
 		} else if (status === 'disabled') {
-			text = '⏼';
+			text = constants.ICON.INIT_DISABLED;
 		}
 
 		return E('span', { class: `autostart-status autostart-${status || ''}` }, text);
 	},
 
 	isRunning() {
-		// Podman reports 'starting' for a running container whose healthcheck
-		// has not yet succeeded, and 'unhealthy' for one whose healthcheck is
-		// failing. The container process is up in both cases, so we treat them
-		// as running variants for purposes of "is the container up?" booleans
-		// and the Overview running counter. The state badge still shows the
-		// granular value so users see the healthcheck signal.
-		const s = this.getState();
+		const state = this.getState();
 		return this.State?.Running
-			|| s === 'running'
-			|| s === 'starting'
-			|| s === 'unhealthy';
+			|| state === 'running'
+			|| state === 'starting'
+			|| state === 'unhealthy';
+	},
+
+	isStopped() {
+		const state = this.getState();
+		return state === 'exited' || state === 'created';
 	},
 
 	isPaused() {

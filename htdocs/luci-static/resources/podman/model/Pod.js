@@ -105,6 +105,11 @@ const Pod = Model.base.extend({
 		return this.getStatus() === 'Paused';
 	},
 
+	isStopped() {
+		const state = this.getStatus();
+		return state === 'Stopped' || state === 'Exited' || state === 'Created' || state === 'Dead';
+	},
+
 	async inspect() {
 		return PodRPC.inspect(this.getName());
 	},

@@ -55,9 +55,9 @@ export function parse_content_length(buf) {
  * with the headers. Returns null if the peer closes before headers are
  * complete.
  *
- * @param {Socket} sock      Connected socket
- * @param {?number} blocksize  recv chunk size (default 65536)
- * @returns {?{header_buf:string, body_remainder:string}}
+ * @param {any} sock      Connected socket
+ * @param {number|null} blocksize  recv chunk size (default 65536)
+ * @returns {{header_buf:string, body_remainder:string}|null}
  */
 export function read_headers(sock, blocksize) {
 	let bs = blocksize || 65536;
