@@ -7,7 +7,7 @@
 		},
 		"depends": {
 			"acl": [
-				"luci-podman"
+				"luci-app-podman"
 			]
 		}
 	},
