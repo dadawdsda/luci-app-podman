@@ -6,10 +6,9 @@
 			"type": "firstchild"
 		},
 		"depends": {
-			"fs": {
-				"/etc/config/luci-podman": "file",
-				"/etc/config/luci-podman-opkg": "file"
-			}
+			"acl": [
+				"luci-podman"
+			]
 		}
 	},
 	"admin/podman/overview": {
@@ -87,7 +86,10 @@
 			"function": "container_logs"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	},
@@ -98,7 +100,10 @@
 			"function": "container_top"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	},
@@ -109,7 +114,10 @@
 			"function": "container_stats"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	},
@@ -120,7 +128,10 @@
 			"function": "image_pull"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	},
@@ -131,7 +142,10 @@
 			"function": "pod_top"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	},
@@ -142,7 +156,10 @@
 			"function": "pod_stats"
 		},
 		"auth": {
-			"methods": ["cookie:sysauth_https", "cookie:sysauth_http"],
+			"methods": [
+				"cookie:sysauth_https",
+				"cookie:sysauth_http"
+			],
 			"login": true
 		}
 	}

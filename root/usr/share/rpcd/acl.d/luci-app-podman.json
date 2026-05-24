@@ -37,7 +37,7 @@
 				]
 			},
 			"uci": [
-				"podman",
+				"luci-podman",
 				"firewall",
 				"network",
 				"dhcp"
@@ -91,7 +91,7 @@
 				]
 			},
 			"uci": [
-				"podman",
+				"luci-podman",
 				"firewall",
 				"network",
 				"dhcp"
