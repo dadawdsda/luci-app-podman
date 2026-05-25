@@ -42,8 +42,8 @@ const PodmanFormNetwork = podmanView.form.extend({
 		const [zones, parentDevices] = await Promise.all([
 			firewall.getZones().then((zones) =>
 				zones
-					.filter(zone => zone.data.name?.startsWith('podman'))
-					.map(zone => zone.data.name)
+				.filter(zone => zone.data.name?.startsWith('podman'))
+				.map(zone => zone.data.name)
 			),
 			network.getDevices().then((devices) =>
 				devices.filter(this.isValidParentDevice)
@@ -74,7 +74,9 @@ const PodmanFormNetwork = podmanView.form.extend({
 		field = this.section.option(form.ListValue, 'parent', _('Parent Interface'));
 		field.depends('driver', 'macvlan');
 		field.depends('driver', 'ipvlan');
-		field.description = _('Existing physical interface to use as parent. Required for macvlan/ipvlan networks.');
+		field.description = _(
+			'Existing physical interface to use as parent. Required for macvlan/ipvlan networks.'
+			);
 		if (this.parentDevices.length > 0) {
 			this.parentDevices.forEach((device) => {
 				const name = device.getName();
@@ -117,7 +119,10 @@ const PodmanFormNetwork = podmanView.form.extend({
 		field.placeholder = _('Leave empty to auto-generate');
 		field.optional = true;
 		field.datatype = 'netdevname';
-		field.depends({ 'setup_openwrt': '1', 'driver': 'bridge' });
+		field.depends({
+			'setup_openwrt': '1',
+			'driver': 'bridge'
+		});
 		field.description = _(
 			'Name of the bridge interface (e.g., podman0, mynet0). Leave empty to use: &lt;network-name&gt;0. Note: If the generated name conflicts with an existing interface, OpenWrt will auto-increment it.'
 		);
@@ -155,7 +160,8 @@ const PodmanFormNetwork = podmanView.form.extend({
 		const setupOpenwrt = podnetwork.setup_openwrt === '1';
 		const driver = podnetwork.driver || 'bridge';
 		const requestedZone = podnetwork.firewall_zone || '_create_new_';
-		const zoneName = requestedZone === '_create_new_' ? 'podman_' + podnetwork.name : requestedZone;
+		const zoneName = requestedZone === '_create_new_' ? 'podman_' + podnetwork.name :
+			requestedZone;
 		const baseBridgeName = podnetwork.bridge_name || podnetwork.name;
 
 		let bridgeName = baseBridgeName;
@@ -208,7 +214,9 @@ const PodmanFormNetwork = podmanView.form.extend({
 			payload.ipv6_enabled = true;
 
 			if (podnetwork.subnet) {
-				payload.subnets.push({ subnet: ipv6obj.ipv6subnet });
+				payload.subnets.push({
+					subnet: ipv6obj.ipv6subnet
+				});
 
 				if (podnetwork.gateway)
 					payload.subnets[1].gateway = ipv6obj.ipv6gateway;
@@ -233,7 +241,9 @@ const PodmanFormNetwork = podmanView.form.extend({
 
 			if (!setupOpenwrt) return;
 
-			const inspectData = await Network.getSingleton({ name: podnetwork.name }).inspect();
+			const inspectData = await Network.getSingleton({
+				name: podnetwork.name
+			}).inspect();
 			const NetworkModel = Network.getSingleton(inspectData);
 			const deviceName = await NetworkModel.integrationCreateDevice();
 			await NetworkModel.integrationCreateNetwork(deviceName);
@@ -244,8 +254,8 @@ const PodmanFormNetwork = podmanView.form.extend({
 
 			if (await firewall.getZone(zoneName)) {
 				const currentNetworks = uci.get('firewall', zoneName, 'network');
-				const networkList = Array.isArray(currentNetworks) ? currentNetworks
-					: currentNetworks ? [currentNetworks] : [];
+				const networkList = Array.isArray(currentNetworks) ? currentNetworks :
+					currentNetworks ? [currentNetworks] : [];
 				if (!networkList.includes(podnetwork.name)) {
 					networkList.push(podnetwork.name);
 					uci.set('firewall', zoneName, 'network', networkList);
@@ -277,15 +287,15 @@ const PodmanFormNetwork = podmanView.form.extend({
 			await network.flushCache();
 		};
 
-		return this.super('handleCreate', [ createFn, _('Network') ]);
+		return this.super('handleCreate', [createFn, _('Network')]);
 	},
 
 	isValidParentDevice(device) {
 		const type = device.getType();
 		const name = device.getName();
-		return ['ethernet', 'bridge', 'vlan'].includes(type)
-			&& name !== 'lo'
-			&& !name.match(/^(podman|cni-|docker|veth)/);
+		return ['ethernet', 'bridge', 'vlan'].includes(type) &&
+			name !== 'lo' &&
+			!name.match(/^(podman|cni-|docker|veth)/);
 	}
 });
 
