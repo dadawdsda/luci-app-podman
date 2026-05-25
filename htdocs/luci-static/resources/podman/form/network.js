@@ -243,7 +243,6 @@ const PodmanFormNetwork = podmanView.form.extend({
 			}
 
 			if (await firewall.getZone(zoneName)) {
-				console.log('into existing zone');
 				const currentNetworks = uci.get('firewall', zoneName, 'network');
 				const networkList = Array.isArray(currentNetworks) ? currentNetworks
 					: currentNetworks ? [currentNetworks] : [];
@@ -252,7 +251,6 @@ const PodmanFormNetwork = podmanView.form.extend({
 					uci.set('firewall', zoneName, 'network', networkList);
 				}
 			} else {
-				console.log('new zone');
 				const zoneId = uci.add('firewall', 'zone');
 				uci.set('firewall', zoneId, 'name', zoneName);
 				uci.set('firewall', zoneId, 'input', 'DROP');
