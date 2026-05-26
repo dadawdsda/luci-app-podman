@@ -34,6 +34,15 @@
 					"init_script_status",
 					"init_script_show",
 					"system_debug"
+				],
+				"podman_ssetest": [
+					":subscribe"
+				],
+				"podman_stream": [
+					"ensure"
+				],
+				"podman_stats_*": [
+					":subscribe"
 				]
 			},
 			"uci": [
