@@ -713,6 +713,17 @@ const methods = {
 
 	// ==================== System Debug ====================
 
+	// Start the SSE stream daemon on demand. Idempotent (procd start on a
+	// running service is a no-op). The client calls this only when its
+	// podman_stream.ensure failed (daemon down), then retries ensure.
+	stream_ensure_daemon: {
+		args: {},
+		call: function() {
+			init_action('podman-stream', 'start');
+			return { started: true };
+		}
+	},
+
 	system_debug: {
 		args: {},
 		call: function() {
@@ -945,6 +956,7 @@ const methods = {
 // Wrap all methods except system_debug with a socket availability check
 
 const no_socket_check = {
+	stream_ensure_daemon: true,
 	system_debug: true,
 	init_script_generate: true,
 	init_script_show: true,

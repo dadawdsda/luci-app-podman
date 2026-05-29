@@ -35,13 +35,16 @@
 					"init_script_show",
 					"system_debug"
 				],
-				"podman_ssetest": [
-					":subscribe"
-				],
 				"podman_stream": [
 					"ensure"
 				],
 				"podman_stats_*": [
+					":subscribe"
+				],
+				"podman_top_*": [
+					":subscribe"
+				],
+				"podman_logs_*": [
 					":subscribe"
 				]
 			},
@@ -96,7 +99,8 @@
 					"system_prune",
 					"init_script_generate",
 					"init_script_set_enabled",
-					"init_script_remove"
+					"init_script_remove",
+					"stream_ensure_daemon"
 				]
 			},
 			"uci": [

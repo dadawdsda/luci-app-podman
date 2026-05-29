@@ -101,6 +101,22 @@ const ContainerRPC = {
 		method: 'container_create',
 		params: ['data']
 	}),
+
+	// Ask the stream daemon to register a per-container stream object.
+	// Silent: the SSE consumer handles failures itself (no global error dialog).
+	streamEnsure: Model.declareRPCSilent({
+		object: 'podman_stream',
+		method: 'ensure',
+		params: ['kind', 'id', 'params']
+	}),
+
+	// Start the stream daemon on demand (idempotent). Called by the SSE consumer
+	// when streamEnsure fails because the daemon is not running yet.
+	streamEnsureDaemon: Model.declareRPCSilent({
+		object: 'podman',
+		method: 'stream_ensure_daemon',
+		params: []
+	}),
 };
 
 const Container = Model.base.extend({
@@ -593,6 +609,152 @@ const Container = Model.base.extend({
 				onChunk(data.Stats[0]);
 			}
 		);
+	},
+
+	// Shared SSE subscriber for the per-container stream kinds (stats, top, ...).
+	// Flow: ensure object (start daemon on failure) -> subscribe -> stream ->
+	// auto-reconnect on close. A continuous stream never renews the session; the
+	// daemon's backstop closes it after ~sessiontime, and a reconnect whose session
+	// has expired is denied -> redirect to login. Persistent ensure failure is
+	// treated as auth -> login (avoids an infinite reconnect loop). onSample
+	// receives each parsed NDJSON sample; the caller does kind-specific extraction.
+	_subscribeStream(kind, params, onSample, opts) {
+		opts = opts || {};
+		const id = this.getID();
+		let stopped = false;
+		let controller = null;
+		let backoff = 1000;
+		let fails = 0;
+
+		const goLogin = () => {
+			if (stopped) return;
+			stopped = true;
+			window.location.href = L.url('admin');
+		};
+
+		// Returns true on a clean stream close (reconnect), false on a failure
+		// that produced no stream (caller counts toward the auth fallback).
+		const connectOnce = async () => {
+			// 1. ensure the object; if that fails, start the daemon and retry once
+			const expired = (r) => r && r.error && /expir|denied|access/i.test(r.error);
+			let res = await ContainerRPC.streamEnsure(kind, id, params).catch(() => null);
+			if (expired(res)) { goLogin(); return true; } // session deadline reached
+			if (!res || !res.object) {
+				await ContainerRPC.streamEnsureDaemon().catch(() => null);
+				await new Promise((r) => setTimeout(r, 600));
+				res = await ContainerRPC.streamEnsure(kind, id, params).catch(() => null);
+			}
+			if (expired(res)) { goLogin(); return true; }
+			if (!res || !res.object) return false;
+
+			// 2. subscribe (Bearer-authed). A denied subscribe returns HTTP 200 with
+			// a JSON error body (not text/event-stream) -> session expired -> login.
+			controller = new AbortController();
+			const resp = await fetch('/ubus/subscribe/' + res.object, {
+				headers: { 'Authorization': 'Bearer ' + L.env.sessionid },
+				signal: controller.signal,
+			});
+			if ((resp.headers.get('content-type') || '').indexOf('text/event-stream') < 0) {
+				goLogin();
+				return true;
+			}
+
+			// healthy connection
+			fails = 0;
+			backoff = 1000;
+
+			const reader = resp.body.getReader();
+			const dec = new TextDecoder();
+			let buf = '';
+			let gotDone = false;
+			while (!stopped) {
+				const { value, done } = await reader.read();
+				if (done) break;
+				buf += dec.decode(value, { stream: true });
+
+				let idx;
+				while ((idx = buf.indexOf('\n\n')) >= 0) {
+					const block = buf.slice(0, idx);
+					buf = buf.slice(idx + 2);
+
+					let data = '';
+					for (const l of block.split('\n'))
+						if (l.indexOf('data:') === 0) data += l.slice(5).trim();
+					if (!data) continue;
+
+					let sample;
+					try { sample = JSON.parse(data); } catch (e) { continue; }
+					onSample(sample);
+					if (sample && sample.done) { gotDone = true; break; } // one-shot complete
+				}
+				if (gotDone) break;
+			}
+			return true;
+		};
+
+		const loop = async () => {
+			while (!stopped) {
+				let ok = false;
+				try { ok = await connectOnce(); } catch (e) { ok = false; }
+				if (stopped) break;
+				// One-shot (e.g. a bounded log fetch): render once, never reconnect.
+				if (opts.oneShot) { stopped = true; if (opts.onDone) opts.onDone(); return; }
+				if (ok) {
+					// clean disconnect (backstop recycle / server close) -> quick reconnect
+					await new Promise((r) => setTimeout(r, 500));
+					continue;
+				}
+				// ensure never produced a stream; persistent failure => assume auth
+				if (++fails >= 3) { goLogin(); return; }
+				await new Promise((r) => setTimeout(r, backoff));
+				backoff = Math.min(backoff * 2, 30000);
+			}
+		};
+		loop();
+
+		return { stop: () => { stopped = true; if (controller) controller.abort(); } };
+	},
+
+	// Live per-container stats via SSE. Each sample is { Stats: [<this container>] }.
+	streamStatsViaSSE(onChunk, interval) {
+		return this._subscribeStream('stats', { interval: interval || 3 }, (sample) => {
+			const s = (sample.Stats || [])[0];
+			if (s) onChunk(s);
+		});
+	},
+
+	// Live per-container process list via SSE. Each sample is { Titles, Processes }.
+	streamTopViaSSE(onChunk, delay, psArgs) {
+		return this._subscribeStream('top', { delay: delay || 5, ps_args: psArgs || '' }, (sample) => {
+			if (sample.Error) return;
+			onChunk(sample);
+		});
+	},
+
+	// Container logs via SSE. `params.follow` true => live stream (resumes on
+	// reconnect); false => one-shot bounded fetch (renders the window, then stops,
+	// no reconnect). Daemon samples are { raw: <de-framed chunk> } plus a final
+	// { done: true }; split into lines so the caller's per-line handler is unchanged.
+	streamLogsViaSSE(onLine, params, onDone) {
+		params = params || {};
+		const follow = params.follow ? true : false;
+		let partial = '';
+		return this._subscribeStream('logs', {
+			tail:   params.tail,
+			since:  params.since,
+			until:  params.until,
+			follow: follow,
+			tty:    params.tty ? true : false,
+		}, (sample) => {
+			if (sample.done) {
+				if (partial) { onLine({ raw: partial }); partial = ''; }
+				return;
+			}
+			if (typeof sample.raw !== 'string') return;
+			const lines = (partial + sample.raw).split('\n');
+			partial = lines.pop();
+			for (const line of lines) onLine({ raw: line });
+		}, { oneShot: !follow, onDone });
 	},
 
 	streamLogs(onChunk, { tail = 100, since = null, until = null, follow = true } = {}) {

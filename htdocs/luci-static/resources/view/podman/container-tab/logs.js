@@ -23,14 +23,31 @@ return podmanView.tabContent.extend({
 	},
 
 	onTabActive() {
-		// Running: auto-start live stream. Stopped: load historical logs on demand via play button.
+		// Pause on hidden tab / resume on return; clean close on full page unload.
+		if (!this._visHandler) {
+			this._visHandler = () => document.hidden ? this._close() : (this._wantStream && this._open());
+			document.addEventListener('visibilitychange', this._visHandler);
+		}
+		if (!this._unloadHandler) {
+			this._unloadHandler = () => this._close();
+			window.addEventListener('beforeunload', this._unloadHandler);
+		}
+		// Running: auto-start live stream. Stopped: user fetches via the play button.
 		if (this.container.isRunning()) {
 			this.startStream();
 		}
 	},
 
 	onTabInactive() {
-		this.stopStream();
+		this._close();
+		if (this._visHandler) {
+			document.removeEventListener('visibilitychange', this._visHandler);
+			this._visHandler = null;
+		}
+		if (this._unloadHandler) {
+			window.removeEventListener('beforeunload', this._unloadHandler);
+			this._unloadHandler = null;
+		}
 	},
 
 	_setStreamActive(active) {
@@ -41,8 +58,20 @@ return podmanView.tabContent.extend({
 		this.stopButton.querySelector('.cbi-button').classList.toggle('cbi-button-active', !active);
 	},
 
+	// User-facing controls (play/stop buttons + running auto-start) set the intent;
+	// _open/_close are the actual stream lifecycle (also driven by visibility).
 	startStream() {
-		if (!this.container || this.logsStream) {
+		this._wantStream = true;
+		this._open();
+	},
+
+	stopStream() {
+		this._wantStream = false;
+		this._close();
+	},
+
+	_open() {
+		if (!this.container || this.logsStream || document.hidden) {
 			return;
 		}
 
@@ -53,7 +82,7 @@ return podmanView.tabContent.extend({
 		const toUnixSince = (val) => val ? new Date(val + 'T00:00:00').getTime() / 1000 : null;
 		const toUnixUntil = (val) => val ? new Date(val + 'T23:59:59').getTime() / 1000 : null;
 
-		this.logsStream = this.container.streamLogs((data) => {
+		this.logsStream = this.container.streamLogsViaSSE((data) => {
 			if (!data || !data.raw) return;
 
 			const line = data.raw
@@ -71,14 +100,18 @@ return podmanView.tabContent.extend({
 			since:  toUnixSince(this.logSinceInput.value),
 			until:  toUnixUntil(this.logUntilInput.value),
 			follow: this.container.isRunning(),
+			tty:    this.container.getTty(),
+		}, () => {
+			// one-shot (follow=false) completed -> return the toolbar to idle
+			this._wantStream = false;
+			this.logsStream = null;
+			this._setStreamActive(false);
 		});
 	},
 
-	stopStream() {
+	_close() {
 		if (!this.logsStream) return;
-
 		this._setStreamActive(false);
-
 		this.logsStream.stop();
 		this.logsStream = null;
 	},

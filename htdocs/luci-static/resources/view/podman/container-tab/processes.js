@@ -24,18 +24,42 @@ return podmanView.tabContent.extend({
 	},
 
 	onTabActive() {
-		if (!this.container || !this.container.isRunning() || this.processStream) {
-			return;
-		}
+		this._startStream();
 
-		this.processStream = this.container.streamTop((ps) => {
-			this.updateProcessList(ps);
-		});
+		// Pause while the browser tab is hidden; resume on return.
+		if (!this._visHandler) {
+			this._visHandler = () => document.hidden ? this._stopStream() : this._startStream();
+			document.addEventListener('visibilitychange', this._visHandler);
+		}
+		if (!this._unloadHandler) {
+			this._unloadHandler = () => this._stopStream();
+			window.addEventListener('beforeunload', this._unloadHandler);
+		}
 	},
 
 	onTabInactive() {
-		if (!this.processStream) return;
+		this._stopStream();
+		if (this._visHandler) {
+			document.removeEventListener('visibilitychange', this._visHandler);
+			this._visHandler = null;
+		}
+		if (this._unloadHandler) {
+			window.removeEventListener('beforeunload', this._unloadHandler);
+			this._unloadHandler = null;
+		}
+	},
 
+	_startStream() {
+		if (!this.container || !this.container.isRunning() || this.processStream || document.hidden) {
+			return;
+		}
+		this.processStream = this.container.streamTopViaSSE((ps) => {
+			this.updateProcessList(ps);
+		}, 2);
+	},
+
+	_stopStream() {
+		if (!this.processStream) return;
 		this.processStream.stop();
 		this.processStream = null;
 	},

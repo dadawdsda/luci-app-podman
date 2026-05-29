@@ -6,6 +6,7 @@
 - Checkout new table filters for 25.12 and backwards compatibility (4)
 - Sortable table (3)
 - Check for duplicated code (2)
+- Get rid of podman-api helper for volumes (1)
 
 ## Overview
 
@@ -31,6 +32,8 @@
 - Missing health check settings (2)
 - Fill form from cli command (3)
 - Timezone field (3)
+
+### Details
 
 ### List
 

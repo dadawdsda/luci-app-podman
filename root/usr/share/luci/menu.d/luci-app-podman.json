@@ -79,6 +79,14 @@
 			"path": "podman/secrets"
 		}
 	},
+	"admin/podman/ssetest": {
+		"title": "SSE Test",
+		"order": 90,
+		"action": {
+			"type": "view",
+			"path": "podman/ssetest"
+		}
+	},
 	"admin/podman/stream/logs/*": {
 		"action": {
 			"type": "function",

@@ -23,20 +23,45 @@ return podmanView.tabContent.extend({
 	},
 
 	onTabActive() {
-		if (!this.container || !this.container.isRunning() || this.statsStream) {
-			return;
-		}
+		this._startStream();
 
-		this.statsStream = this.container.streamStats((stats) => {
-			this.updateStatsDisplay(stats);
-		});
+		// Pause the stream while the browser tab is hidden (frees the uhttpd slot
+		// and the Podman stream for a forgotten background tab); resume on return.
+		if (!this._visHandler) {
+			this._visHandler = () => document.hidden ? this._stopStream() : this._startStream();
+			document.addEventListener('visibilitychange', this._visHandler);
+		}
+		// Best-effort clean close on full page unload/refresh.
+		if (!this._unloadHandler) {
+			this._unloadHandler = () => this._stopStream();
+			window.addEventListener('beforeunload', this._unloadHandler);
+		}
 	},
 
 	onTabInactive() {
-		if (!this.statsStream) {
+		this._stopStream();
+		if (this._visHandler) {
+			document.removeEventListener('visibilitychange', this._visHandler);
+			this._visHandler = null;
+		}
+		if (this._unloadHandler) {
+			window.removeEventListener('beforeunload', this._unloadHandler);
+			this._unloadHandler = null;
+		}
+	},
+
+	_startStream() {
+		if (!this.container || !this.container.isRunning() || this.statsStream || document.hidden) {
 			return;
 		}
+		this.statsStream = this.container.streamStatsViaSSE((stats) => {
+			console.log('stats', stats);
+			this.updateStatsDisplay(stats);
+		}, 2);
+	},
 
+	_stopStream() {
+		if (!this.statsStream) return;
 		this.statsStream.stop();
 		this.statsStream = null;
 	},
